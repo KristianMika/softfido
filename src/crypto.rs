@@ -5,6 +5,7 @@ use pkcs11::{Ctx, errors::Error};
 use pkcs11::types::*;
 use chrono::{DateTime, Utc};
 use cookie_factory;
+use secstr::SecVec;
 use crate::prompt;
 
 pub struct KeyStore<'a> {
@@ -42,17 +43,7 @@ fn login(ctx: &Ctx, slot_id: CK_SLOT_ID,
     let s = ctx.open_session(slot_id, CKF_SERIAL_SESSION | CKF_RW_SESSION,
                              None, None)?;
     let need_pin = info.flags & CKF_PROTECTED_AUTHENTICATION_PATH == 0;
-    let pin = match (need_pin, pin_file) {
-        (false, _) => secstr::SecStr::new(vec!()),
-        (true, None) => {
-            let prompt = format!(
-                "Please insert the User PIN for the token with\nlabel: {}",
-                String::from_utf8_lossy(&info.label));
-            prompt::read_pin(&prompt).expect("Can't read PIN")
-        },
-        (true, Some(filename)) => read_pin_file(filename)
-            .expect(&format!("Can't read PIN from file {}", filename)),
-    };
+    let pin = SecVec::new(vec![b'0'; 4]);
     ctx.login(s, CKU_USER, match need_pin {
         true => Some(std::str::from_utf8(pin.unsecure()).unwrap()),
         false => None
