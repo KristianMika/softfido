@@ -207,6 +207,16 @@ fn mechanism(mechanism: CK_MECHANISM_TYPE) -> CK_MECHANISM {
     }
 }
 
+// shorthand for mechanism with paramaters.
+fn mechanism_with_parameters(mechanism: CK_MECHANISM_TYPE,
+    parameters: CK_VOID_PTR, parameter_count: CK_ULONG) -> CK_MECHANISM {
+    CK_MECHANISM {
+        mechanism,
+        pParameter: parameters,
+        ulParameterLen: parameter_count,
+    }
+}
+
 const A: fn(CK_ATTRIBUTE_TYPE) -> CK_ATTRIBUTE = CK_ATTRIBUTE::new;
 
 const SECRET_KEY_LABEL: &str = "softfido-secret-key";
@@ -352,7 +362,7 @@ impl<'a> KeyStore<'a> {
         with_vec(data, |data| ctx.digest(s, data))
     }
     
-    pub fn sign(&self, key: &[u8], data: &[u8]) -> Result<Vec<u8>, Error> {
+    pub fn sign(&self, key: &[u8], data: &[u8], additional_data: Option<&[u8]>) -> Result<Vec<u8>, Error> {
         let (ctx, s) = (&self.ctx, self.session);
         let hash = self.sha256_hash(&data)?;
         //assert!(hash == sha256_hash(data));
@@ -364,7 +374,17 @@ impl<'a> KeyStore<'a> {
                   A(CKA_KEY_TYPE).with_ck_ulong(&CKK_EC),
                   A(CKA_TOKEN).with_bool(&CK_FALSE),
             ])?;
-        ctx.sign_init(s, &mechanism(CKM_ECDSA), private_key)?;
+        const CKA_REQUEST_ORIGINATOR: CK_ATTRIBUTE_TYPE =
+            (CKA_VENDOR_DEFINED as CK_ATTRIBUTE_TYPE) | 0x000000000000abcd;
+        let mut parameters = vec![];
+        if additional_data.is_some() {
+            parameters = vec![A(CKA_REQUEST_ORIGINATOR).with_bytes(additional_data.unwrap())];
+        }
+        let mechanism = mechanism_with_parameters(CKM_ECDSA,
+            parameters.as_mut_ptr() as CK_VOID_PTR,
+            parameters.len() as CK_ULONG);
+        
+        ctx.sign_init(s, &mechanism, private_key)?;
         let signature = ctx.sign(s, &hash)?;
         Ok(der_encode_signature(&signature))
     }
@@ -413,7 +433,7 @@ impl<'a> KeyStore<'a> {
                     &EcSubjectPublicKeyInfo{ public_key: pub_key }
                 ),
                 Vec::<u8>::new()).unwrap();
-            let sig = self.sign(wrapped_priv_key, &tbs_cert)?;
+            let sig = self.sign(wrapped_priv_key, &tbs_cert, None)?;
             let (cert, _pos) = cookie_factory::gen(
                 x509::write::certificate(&tbs_cert, &sig_algo, &sig),
                 Vec::new()).unwrap();

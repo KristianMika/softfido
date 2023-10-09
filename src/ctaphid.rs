@@ -719,7 +719,7 @@ Allow?",
             &counter.to_be_bytes(),
         ].concat();
         let data = [&auth_data[..], &args.client_data_hash.0].concat();
-        let signature = self.token.sign(wpriv_key, &data)?;
+        let signature = self.token.sign(wpriv_key, &data, Some(args.rp_id.as_bytes()))?;
         let response = GetAssertionResponse {
             _marker: None,
             auth_data: Bytes(auth_data),
@@ -811,7 +811,7 @@ Allow?",
                                           application,
                                           challenge,
                                           &key_handle,
-                                          &pub_key,].concat())?;
+                                          &pub_key,].concat(), None)?;
         let not_before = chrono::Utc::now();
         let not_after = not_before + chrono::Duration::days(30);
         let cert = self.token.create_certificate(&wpriv, &pub_key,
@@ -874,7 +874,7 @@ Allow?",
                                           &[application,
                                             &[presence],
                                             &counter.to_be_bytes(),
-                                            challange,].concat())?;
+                                            challange,].concat(), Some(application))?;
 
                 let reply = [&[presence][..],
                              &counter.to_be_bytes(),
