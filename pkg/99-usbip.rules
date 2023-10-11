@@ -1,0 +1,1 @@
+SUBSYSTEM=="hidraw", TAG+="uaccess", GROUP="mpc-bridge", MODE="0660"

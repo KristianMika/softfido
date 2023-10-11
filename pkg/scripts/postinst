@@ -1,0 +1,9 @@
+#!/bin/sh
+
+set -e 
+
+modprobe vhci-hcd
+
+udevadm control --reload-rules
+
+service usbipd restart
