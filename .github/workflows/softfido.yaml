@@ -1,0 +1,144 @@
+name: Softfido
+
+on: [push, pull_request]
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  build-and-test:
+    strategy:
+      matrix:
+        target: [Linux]
+        include:
+          - target: Windows
+            os: windows-latest
+          - target: Linux
+            os: ubuntu-latest
+
+    name: ${{ matrix.target }} build & test
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+
+      - name: Install rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Install requirements
+        if: ${{ matrix.target == 'Linux' }}
+        run: |
+          sudo apt-get update 
+          sudo apt-get install --assume-yes clang libc6-dbg
+
+      - name: Run cargo check
+        if: ${{ matrix.target == 'Windows' }}
+        run: cargo check
+      - name: Run cargo check
+        if: ${{ matrix.target == 'Linux' }}
+        run: cargo check
+
+      - name: Build
+        run: cargo build --verbose
+
+      - name: Upload debug build
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.target }}-softfido-debug
+          path: ./target/debug/softfido
+          if-no-files-found: error
+
+  production-build:
+    name: ${{ matrix.target }} Production build
+    needs: build-and-test
+    if: startsWith(github.ref, 'refs/tags/v')
+    strategy:
+      matrix:
+        target: [Linux]
+        include:
+          - target: Windows
+            os: windows-latest
+          - target: Linux
+            os: ubuntu-latest
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+
+      - uses: olegtarasov/get-tag@v2.1.2
+        id: tagName
+        with:
+          tagRegex: "v(.*)"
+
+      - name: Install rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Install cargo get
+        run: cargo install cargo-get
+
+      - name: Compare versions
+        if: ${{ matrix.target == 'Linux' }}
+        run: |
+          if [ ${{ steps.tagName.outputs.tag }} != $(cargo get package.version) ]; then
+            echo "Tag version and cargo version don't match. Please, fix it." >&2;
+            exit 1;
+          fi
+
+      - name: Install requirements
+        if: ${{ matrix.target == 'Linux' }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install --assume-yes clang libclang-dev
+
+      - name: Create a production build
+        run: cargo build --release
+
+      - name: Debian package Creation
+        if: ${{ matrix.target == 'Linux' }}
+        run: |
+          cargo install cargo-deb
+          cargo deb --no-build
+
+      - name: Debian package Upload
+        if: ${{ matrix.target == 'Linux' }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: debian-softfido-prod
+          path: ./target/debian/softfido_*_amd64.deb
+          if-no-files-found: error
+
+      - name: Upload production build
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.target }}-softfido-prod
+          path: ./target/release/softfido
+          if-no-files-found: error
+
+  release:
+    needs: production-build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Debian package
+        uses: actions/download-artifact@v3
+        with:
+          name: debian-softfido-prod
+          path: .
+          if-no-files-found: error
+
+      - name: Packagecloud Upload
+        uses: computology/packagecloud-github-action@v0.6
+        with:
+          PACKAGE-NAME: ./softfido_*.deb
+          PACKAGECLOUD-USERNAME: kristian_mika
+          PACKAGECLOUD-REPONAME: mpc-bridge/any/any
+          PACKAGECLOUD-DISTRO: debian
+          PACKAGECLOUD-TOKEN: ${{ secrets.PACKAGECLOUD_TOKEN }}
