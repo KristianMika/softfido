@@ -33,7 +33,7 @@ jobs:
         if: ${{ matrix.target == 'Linux' }}
         run: |
           sudo apt-get update 
-          sudo apt-get install --assume-yes clang libc6-dbg
+          sudo apt-get install --assume-yes clang libc6-dbg libudev-dev
 
       - name: Run cargo check
         if: ${{ matrix.target == 'Windows' }}
@@ -96,7 +96,7 @@ jobs:
         if: ${{ matrix.target == 'Linux' }}
         run: |
           sudo apt-get update
-          sudo apt-get install --assume-yes clang libclang-dev
+          sudo apt-get install --assume-yes clang libclang-dev libudev-dev
 
       - name: Create a production build
         run: cargo build --release
