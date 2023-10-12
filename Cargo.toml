@@ -12,7 +12,7 @@ exclude = ["python"]
 maintainer = "Kristian Mika <kristian.mika@protonmail.com>"
 extended-description = """\
 A virtual FIDO token that uses a PKCS#11 library as a backend, supporting U2F and FIDO2 protocols."""
-depends = "$auto, linux-tools-generic (>=5.15)"
+depends = "$auto, linux-tools-generic (>=5.15), linux-image-extra-virtual (>=5.15)"
 section = "utility"
 priority = "optional"
 assets = [
