@@ -2,5 +2,24 @@
 
 set -e
 
-addgroup --system mpc-bridge
-adduser --system --no-create-home --ingroup mpc-bridge softfido
+setup_group_and_user() {
+
+    if ! getent group "$2" >/dev/null; then
+            addgroup --quiet \
+                     --system \
+                     "$2"
+    fi
+
+    if ! getent passwd "$1" >/dev/null; then
+            adduser --quiet \
+                    --system \
+                    --home /nonexistent \
+                    --no-create-home \
+                    --disabled-password \
+                    --shell /usr/sbin/nologin \
+                    --ingroup "$2" \
+                    "$1"
+    fi
+}
+
+setup_group_and_user softfido mpc-bridge
