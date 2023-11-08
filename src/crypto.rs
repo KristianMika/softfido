@@ -26,11 +26,15 @@ fn match_label(pattern: &str, label: &[u8; 32]) -> bool {
     }
 }
 
-fn find_token(ctx: &Ctx, label: &str) -> Result<Vec<CK_SLOT_ID>, Error> {
+fn find_token(ctx: &Ctx, label: &str, cryptoki_bridge_mode: bool) -> Result<Vec<CK_SLOT_ID>, Error> {
     let mut result = vec!();
-    for slot_id in ctx.get_slot_list(true)? {
+    let slotlist = ctx.get_slot_list(true)?;
+    if cryptoki_bridge_mode && slotlist.len() != 1 {
+        panic!("cryptoki_bridge_mode requires exactly one slot");
+    }
+    for slot_id in slotlist {
         let info = ctx.get_token_info(slot_id)?;
-        if match_label(label, &info.label) {
+        if match_label(label, &info.label) || cryptoki_bridge_mode {
             result.push(slot_id);
         }
     }
@@ -95,9 +99,9 @@ pub mod globals {
 }
 
 pub fn open_token<'a> (ctx: &'a Ctx, label: &str,
-                       pin_file: &Option<String>)
+                       pin_file: &Option<String>, cryptoki_bridge_mode:bool)
                        -> Result<KeyStore<'a>, Error> {
-    let slot_ids = find_token(&ctx, label)?;
+    let slot_ids = find_token(&ctx, label, cryptoki_bridge_mode)?;
     let slot_id = match slot_ids.len() {
         1 => slot_ids[0],
         l => return Err(Error::Module(match l {
@@ -486,7 +490,7 @@ mod tests {
         let label = "softfido";
         with_ctx(lib, &|ctx| -> R<T> {
             let ctx = ctx.unwrap();
-            let token = super::open_token(&ctx, label, &pinfile)?;
+            let token = super::open_token(&ctx, label, &pinfile, false)?;
             f(&token)
         })
     }
