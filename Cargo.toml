@@ -18,7 +18,7 @@ priority = "optional"
 assets = [
     [
         "target/release/softfido",
-        "usr/lib/softfido",
+        "usr/bin/softfido",
         "755",
     ],
     [
@@ -47,4 +47,4 @@ cookie-factory = "0.3.0"
 lazy_static = "1.4.0"
 
 [build-dependencies]
-bindgen = "0.52.0"
+bindgen = "0.69.0"
