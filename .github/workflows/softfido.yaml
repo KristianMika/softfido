@@ -12,8 +12,6 @@ jobs:
       matrix:
         target: [Linux]
         include:
-          - target: Windows
-            os: windows-latest
           - target: Linux
             os: ubuntu-latest
 
@@ -60,8 +58,6 @@ jobs:
       matrix:
         target: [Linux]
         include:
-          - target: Windows
-            os: windows-latest
           - target: Linux
             os: ubuntu-latest
 
