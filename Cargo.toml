@@ -15,6 +15,7 @@ A virtual FIDO token that uses a PKCS#11 library as a backend, supporting U2F an
 depends = "$auto, linux-tools-generic (>=5.15)"
 section = "utility"
 priority = "optional"
+revision = ""
 assets = [
     [
         "target/release/softfido",
